@@ -77,13 +77,13 @@ async def send_notification(title, content, delay_seconds):
 
 def schedule_notification(title:str, content:str, delay_seconds=0):
 
-    def run_notifiction():
+    def run_notification():
         asyncio.run(
             send_notification(title, content, delay_seconds)
         )
 
     threading.Thread(
-        target=send_notification,
+        target=run_notification,
         daemon=False
     ).start()
 
