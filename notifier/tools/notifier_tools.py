@@ -1,4 +1,5 @@
 import asyncio
+import threading
 from anthropic.types import ToolParam
 from datetime import datetime, timedelta 
 from desktop_notifier import DesktopNotifier, DEFAULT_SOUND
@@ -57,7 +58,7 @@ def add_duration_to_datetime(datetime_str, date_format="%Y-%m-%d %H:%M:%S", dura
     return new_date.strftime("%A, %B %d, %Y %I:%M:%S %p")
 
 
-async def schedule_notification(title:str, content:str, delay_seconds=0):
+async def send_notification(title, content, delay_seconds):
 
     delay_seconds = int(delay_seconds)
     
@@ -73,3 +74,17 @@ async def schedule_notification(title:str, content:str, delay_seconds=0):
         )
 
     return "Notification was successfully sent"
+
+def schedule_notification(title:str, content:str, delay_seconds=0):
+
+    def run_notifiction():
+        asyncio.run(
+            send_notification(title, content, delay_seconds)
+        )
+
+    threading.Thread(
+        target=run_notifiction,
+        daemon=True
+    )
+
+    return "Notification was successfully scheduled"
