@@ -1,20 +1,82 @@
-### How to connect to the server 
+# Connecting to the Notifier MCP Server
 
-## (1) Clone the repo samcpar
+## 1. Clone the repository
 
-## (2) Create a local venv
+```bash
+git clone <repo_url>
+cd samcpar
+```
+
+## 2. Create and activate a virtual environment
+
+```bash
 python -m venv .venv
+```
 
-## (3) Install requirements
+### macOS / Linux
+
+```bash
+source .venv/bin/activate
+```
+
+### Windows
+
+```bash
+.venv\Scripts\activate
+```
+
+## 3. Install dependencies
+
+```bash
 pip install -r requirements.txt
+```
 
-## (4) Add the MCP Server to the json config file
-"mcpServers": {
+## 4. Verify the MCP server runs correctly
+
+From the repository root:
+
+```bash
+.venv/bin/mcp run notifier/server.py
+```
+
+The process should start and remain running while waiting for client connections.
+
+## 5. Add the server to Claude Desktop
+
+Update your Claude Desktop MCP configuration file:
+
+```json
+{
+  "mcpServers": {
     "notifier": {
-      "command": "<path_to_venv_mcp>"
+      "command": "<path_to_repo>/.venv/bin/mcp",
       "args": [
         "run",
-        "<path_to_local_repo>/notifier/server.py"
+        "<path_to_repo>/notifier/server.py"
       ]
     }
   }
+}
+```
+
+Example:
+
+```json
+{
+  "mcpServers": {
+    "notifier": {
+      "command": "/Users/john/projects/samcpar/.venv/bin/mcp",
+      "args": [
+        "run",
+        "/Users/john/projects/samcpar/notifier/server.py"
+      ]
+    }
+  }
+}
+```
+
+## 6. Restart Claude Desktop
+
+After saving the configuration, completely quit and reopen Claude Desktop.
+
+The Notifier MCP Server should now appear in the MCP tools list.
