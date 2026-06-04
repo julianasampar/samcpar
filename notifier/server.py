@@ -50,5 +50,4 @@ def notify_me_latest_news(interests: str) -> str:
     """
     return prompt
 
-# HTTP (remote)
-# mcp.run(transport="streamable-http")
+mcp.run()

@@ -83,7 +83,7 @@ def schedule_notification(title:str, content:str, delay_seconds=0):
         )
 
     threading.Thread(
-        target=run_notifiction,
+        target=send_notification,
         daemon=False
     ).start()
 
