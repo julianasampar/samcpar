@@ -1,17 +1,20 @@
-create a local venv
+### How to connect to the server 
 
+## (1) Clone the repo samcpar
+
+## (2) Create a local venv
+python -m venv .venv
+
+## (3) Install requirements
 pip install -r requirements.txt
 
+## (4) Add the MCP Server to the json config file
 "mcpServers": {
     "notifier": {
-      "command": "./Library/Python/3.10/lib/python/site-packages/uv",
+      "command": "<path_to_venv_mcp>"
       "args": [
         "run",
-        "--with",
-        "mcp",
-        "mcp",
-        "run",
-        "/Users/julianasampar/Desktop/learning_dev/personal_dev/samcpar/notifier/server.py"
+        "<path_to_local_repo>/notifier/server.py"
       ]
     }
   }
