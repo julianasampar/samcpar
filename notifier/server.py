@@ -1,6 +1,7 @@
 # Import libraries
-from anthropic import Anthropic
 from mcp.server.fastmcp import FastMCP
+from fastmcp.prompts import Message
+from mcp.types import ToolAnnotations
 
 # Getting notification tools
 from tools import notifier_tools
@@ -12,19 +13,41 @@ mcp = FastMCP("system_notifier", log_level="ERROR")
 mcp.add_tool(
     notifier_tools.get_current_datetime,
     name="get_current_datetime",
-    description="Returns the current date and time formatted according to the specified format"
+    description="Returns the current date and time formatted according to the specified format",
+    annotations=ToolAnnotations(
+        title="Get Current Date and Time",
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=True
+    )
+
 )
 
 mcp.add_tool(
     notifier_tools.add_duration_to_datetime,
     name="add_duration_to_datetime",
-    description="Adds a specified duration to a datetime string and returns the resulting datetime in a detailed format. This tool converts an input datetime string to a Python datetime object, adds the specified duration in the requested unit, and returns a formatted string of the resulting datetime. It handles various time units including seconds, minutes, hours, days, weeks, months, and years, with special handling for month and year calculations to account for varying month lengths and leap years. The output is always returned in a detailed format that includes the day of the week, month name, day, year, and time with AM/PM indicator (e.g., 'Thursday, April 03, 2025 10:30:00 AM')."
+    description="Adds a specified duration to a datetime string and returns the resulting datetime in a detailed format. This tool converts an input datetime string to a Python datetime object, adds the specified duration in the requested unit, and returns a formatted string of the resulting datetime. It handles various time units including seconds, minutes, hours, days, weeks, months, and years, with special handling for month and year calculations to account for varying month lengths and leap years. The output is always returned in a detailed format that includes the day of the week, month name, day, year, and time with AM/PM indicator (e.g., 'Thursday, April 03, 2025 10:30:00 AM').",
+    annotations=ToolAnnotations(
+        title="Add Duration to Date and Time",
+        readOnlyHint=True,
+        destructiveHint=False,
+        idempotentHint=True,
+        openWorldHint=False
+    )
 )
 
 mcp.add_tool(
     notifier_tools.schedule_notification,
     name="schedule_notification",
-    description="Schedule a desktop notification with title and content to appear after a specified delay."
+    description="Schedule a desktop notification with title and content to appear after a specified delay.",
+    annotations=ToolAnnotations(
+        title="Add Duration to Date and Time",
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False
+    )
 )
 
 @mcp.prompt()
@@ -48,6 +71,7 @@ def notify_me_latest_news(interests: str) -> str:
         despite continuous Iranian threats.
         </example>
     """
-    return prompt
+    return [Message(role="user", content=prompt)]
 
-mcp.run()
+if __name__ == "__main__":
+    mcp.run()
