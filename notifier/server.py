@@ -50,6 +50,18 @@ mcp.add_tool(
     )
 )
 
+@mcp.resource("resource://interests/{topic}")
+def get_interest(topic: str) -> str:
+    interests = {
+        'Politics': 'Latest political news and updates',
+        'Economics': 'Economic indicators and analysis',
+        'International Affairs': 'Latest updates on countries affairs',
+        'Sports': 'Latest news on Sports events and results',
+        'Business': 'Relevant updates about companies, acquisitions and stocks',
+    }
+    return interests.get(topic, "Topic not found")
+
+
 @mcp.prompt()
 def notify_me_latest_news(interests: str) -> str:
     """Generates a news reporter prompt focused on the user's interests."""
