@@ -81,6 +81,7 @@ def chat(
         params["stop_sequences"] = stop_sequences
 
     response = interaction(user_input, stream_text, **params)
+    print(response)
 
     while response.stop_reason == 'tool_use': # If the LLM requires a tool call
         if not tools_functions:

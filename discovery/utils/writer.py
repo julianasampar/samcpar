@@ -110,7 +110,7 @@ class LocalDataStorage(DataStorage):
 #         AWS IMPLEMENTATION              #
 ############################################
 class AWSDataStorage(DataStorage):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.s3 = boto3.client(
             "s3",
             aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
