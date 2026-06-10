@@ -10,8 +10,8 @@ from discovery.utils import executor
 load_dotenv()
 client = Anthropic()
 
-database="agentic_database.db"
-database_table='agent_log_events'
+database="discovery_mcp__agentic_database.db"
+database_table='discovery_mcp__agent_log_events'
 
 # Functions add_user_message and add_assistant_message to maintain context for conversations
 def add_user_message(messages, text):

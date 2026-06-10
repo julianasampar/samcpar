@@ -57,6 +57,3 @@ connect to openspec? -> build transformation layer on top of approved/deployed o
 "The past has shown that the best way for us to stay in control of what we’re building are small, iterative steps, so I’m very skeptical that lots of up-front spec design is a good idea, especially when it’s overly verbose. "
 
 ** add instruction to find and flag PII information
-
-
---> Profiler could read and profile files in parallel (now it's reading all files and then profiling all files and writing all files)

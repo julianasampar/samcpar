@@ -1,5 +1,8 @@
+import os 
+
 def manage_input_output_paths(
     storage_type,
+    io_type:str,
     input_path=None,
     output_path=None,
     input_bucket=None,
@@ -10,30 +13,69 @@ def manage_input_output_paths(
     writting_kwargs = {}
 
     if storage_type == "local":
+        
+        if io_type == "profiler-inspector":
 
-        if not input_path:
-            raise ValueError(
-                "input_path is required when storage_type is 'local'"
-            )
+            reading_kwargs["folder_path"] = input_path or os.getenv("PROFILER_PATH")
+            writting_kwargs["folder_path"] = output_path or os.getenv("INPESCTOR_PATH")
 
-        if not output_path:
-            raise ValueError(
-                "output_path is required when storage_type is 'local'"
-            )
+            if not reading_kwargs["folder_path"]:
+                raise ValueError(
+                    "Please, provide input_path or add PROFILER_PATH in your environment variables."
+                )
 
-        reading_kwargs["folder_path"] = input_path
-        writting_kwargs["folder_path"] = output_path
+            if not writting_kwargs["folder_path"]:
+                raise ValueError(
+                     "Please, provide output_path or add INPESCTOR_PATH in your environment variables."
+                )
+
+        if io_type == "inspector-analyzer":
+
+            reading_kwargs["folder_path"] = input_path or os.getenv("INPESCTOR_PATH")
+            writting_kwargs["folder_path"] = output_path or os.getenv("ANALYZER_PATH")
+
+            if not reading_kwargs["folder_path"]:
+                raise ValueError(
+                    "Please, provide input_path or add INPESCTOR_PATH in your environment variables."
+                )
+
+            if not writting_kwargs["folder_path"]:
+                raise ValueError(
+                     "Please, provide output_path or add ANALYZER_PATH in your environment variables."
+                )
 
     elif storage_type == "aws":
 
-        input_bucket = input_bucket or os.getenv("S3_BUCKET_NAME")
-        output_bucket = output_bucket or os.getenv("S3_BUCKET_NAME")
+        if io_type == "profiler-inspector":
 
-        if not input_bucket:
-            raise ValueError("Missing input bucket")
+            input_bucket = input_bucket or os.getenv("S3_PROFILER_BUCKET")
+            output_bucket = output_bucket or os.getenv("S3_INSPECTOR_BUCKET")
 
-        if not output_bucket:
-            raise ValueError("Missing output bucket")
+            if not input_bucket:
+                raise ValueError(
+                     "Please, provide input_bucket or add S3_PROFILER_BUCKET in your environment variables."
+                )
+
+            if not output_bucket:
+                raise ValueError(
+                     "Please, provide output_bucket or add S3_INSPECTOR_BUCKET in your environment variables."
+                )
+
+        
+        if io_type == "inspector-analyzer":
+            input_bucket = input_bucket or os.getenv("S3_INSPECTOR_BUCKET")
+            output_bucket = output_bucket or os.getenv("S3_ANALYZER_BUCKET")
+
+            if not input_bucket:
+                raise ValueError(
+                     "Please, provide input_bucket or add S3_INSPECTOR_BUCKET in your environment variables."
+                )
+
+            if not output_bucket:
+                raise ValueError(
+                     "Please, provide output_bucket or add S3_ANALYZER_BUCKET in your environment variables."
+                )
+
 
         reading_kwargs["bucket"] = input_bucket
         writting_kwargs["bucket"] = output_bucket

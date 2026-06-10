@@ -19,7 +19,7 @@ def load_skill(skill_name) -> str:
     return skill_path.read_text(encoding="utf-8")
 
 
-def read_data_sample(source_type: str, table_name: str, filter: dict = None, sample_size: int = 10000, **kwargs) -> dict:
+def read_data_sample(source_type: str, table_name: str, filter: dict = None, sample_size: int = 50, **kwargs) -> dict:
     source = get_datasource(
         source_type=source_type,
         **kwargs
@@ -43,11 +43,15 @@ def inspect_structure_from_profile(
     """
     reading_kwargs, writting_kwargs = manager.manage_input_output_paths(
         storage_type,
-        **kwargs
+        io_type='profiler-inspector',
+        input_path=kwargs.get('input_path'),
+        output_path=kwargs.get('output_path'),
+        input_bucket=kwargs.get('input_bucket'),
+        output_bucket=kwargs.get('output_bucket'),
     )
 
     storage = get_storage(storage_type=storage_type, **reading_kwargs)
-    profile_json = storage.read_json_from_storage(reading_kwargs["folder_path"])
+    profile_json = storage.read_json_from_storage(f"{reading_kwargs["folder_path"]}/{domain_name}")
 
     system_prompt = load_skill(skill_name="STRUCTURE")
 
@@ -78,10 +82,10 @@ def inspect_structure_from_profile(
         results = response.content[0].text
 
         storage = get_storage(storage_type, **writting_kwargs)
-        storage.write_json_to_storage(content={datasource: {"analysis": results, "row_count": 0}}, domain_folder=domain_name)
+        storage.write_json_to_storage(content={datasource: {"analysis": results}}, domain_folder=domain_name, analysis_type="structure")
 
         print(f" Structure of {datasource} inspected. File in storage. Length of analysis: {len(results)} caracteres.")
-    
+
     return print(f"Structure inspection finished.")
 
 
@@ -109,23 +113,28 @@ def build_filters(profiles: dict) -> dict:
 
     return filters
 
-def observe_behavior_from_profile(
-        domain_name:          str,
+def inspect_pattern_from_profile(
+        domain_name:     str,
         storage_type:    str,
-         **kwargs
+        source_type:     str,
+        **kwargs
     ):
     """
         Receives the filter dict from the previous steps and spins up agents to
          analyze its behavior, through dynamic filtering.
     """
-    
+
     reading_kwargs, writting_kwargs = manager.manage_input_output_paths(
         storage_type,
-        **kwargs
+        io_type='profiler-inspector',
+        input_path=kwargs.get('input_path'),
+        output_path=kwargs.get('output_path'),
+        input_bucket=kwargs.get('input_bucket'),
+        output_bucket=kwargs.get('output_bucket'),
     )
 
     storage = get_storage(storage_type=storage_type, **reading_kwargs)
-    profile_json = storage.read_json_from_storage(reading_kwargs["folder_path"])
+    profile_json = storage.read_json_from_storage(f"{reading_kwargs["folder_path"]}/{domain_name}")
     filters = build_filters(profile_json)
     
     # To be able to query the data and observe patterns 
@@ -139,9 +148,9 @@ def observe_behavior_from_profile(
             print(f"  Querying filter {i + 1}/{len(filter_list)}: {f['column']} = {f['value_to_filter']}")
             try:
                 result = read_data_sample(
-                    datasource=datasource,
-                    column=f["column"],
-                    value_to_filter=f["value_to_filter"],
+                    source_type=source_type,
+                    table_name=datasource,
+                    filter={datasource: f},
                 )
                 samples.append({"filter": f, "result": result})
             except Exception as e:
@@ -160,7 +169,7 @@ def observe_behavior_from_profile(
     ]
             
         response = assistant.chat(
-            stream_text=True,
+            stream_text=False,
             messages=observer_messages,
             model="claude-sonnet-4-6",
             max_tokens=8000,
@@ -170,22 +179,8 @@ def observe_behavior_from_profile(
         analysis = response.content[0].text
 
         storage = get_storage(storage_type, **writting_kwargs)
-        storage.write_json_to_storage(content={datasource: {"analysis": analysis, "row_count": 0}}, domain_folder=domain_name)
+        storage.write_json_to_storage(content={datasource: {"analysis": analysis}}, domain_folder=domain_name, analysis_type="pattern")
 
-        print(f" Structure of {datasource} inspected. File in storage. Length of analysis: {len(analysis)} caracteres.")
-        
+        print(f" Pattern of {datasource} inspected. File in storage. Length of analysis: {len(analysis)} caracteres.")
+
     return print(f"Pattern inspection finished.")
-
-
-#inspect_structure_from_profile(
-#    'test_test', 
-#    storage_type='local', 
-#    input_path='/Users/julianasampar/Desktop/learning_dev/personal_dev/pyprojects/others/archive/agent_test',
-#    output_path='/Users/julianasampar/Desktop/learning_dev/personal_dev/pyprojects/others/archive/agent_test/inspected_jsons'
-#    )
-observe_behavior_from_profile(
-    'another_test_test',
-    storage_type='local',
-    input_path='/Users/julianasampar/Desktop/learning_dev/personal_dev/pyprojects/others/archive/agent_test',
-    output_path='/Users/julianasampar/Desktop/learning_dev/personal_dev/pyprojects/others/archive/agent_test/pattern_jsons'
-    )

@@ -1,16 +1,16 @@
 """
 reader.py
 
-This module defines HOW the profiler reads data.
-It does NOT profile, describe, or call any LLM.
-Its only job: connect to a data source and return data/schema.
-"""
+This function defines how the server reads data.
+Current connections: local (csv) and snowflake.
 
-from abc import ABC, abstractmethod
+Its only job is to: connect to a data source and return data/schema.
+"""
+import os
 import duckdb
+from abc import ABC, abstractmethod
 import snowflake.connector
 
-import os
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -27,10 +27,9 @@ class DataSource(ABC):
         pass
 
     @abstractmethod
-    def read_table(self, table_name: str, filter: dict = None, sample_size: int = 1000) -> "duckdb.DuckDBPyRelation":
+    def read_table(self, table_name: str, filter: dict = None, sample_size: int = 1000):
         """
-        Returns a DuckDB relation (lazy query) for the given table.
-        The data is NOT fully loaded into memory — DuckDB reads it on demand.
+        Runs a query and returns the result for a given table.
 
         Parameters:
             table_name  : the name of the table to read
@@ -88,20 +87,22 @@ class DataSource(ABC):
 
 class CSVDataSource(DataSource):
 
-    def __init__(self, folder_path: str, **kwargs):
+    def __init__(
+            self, 
+            folder_path: str = os.getenv('INPUT_DATA_PATH'),
+            **kwargs):
         """
         Sets up the data source pointing to a folder of CSV files.
 
         Parameters:
-            folder_path : path to the folder containing your .csv files
+            folder_path : path to the folder containing .csv files
                           Example: "./data/dvd_rentals"
         """
         # Path() turns a string like "./data" into a proper filesystem path
         self.folder_path = Path(folder_path)
 
         # One shared DuckDB connection for all queries in this source
-        # duckdb.connect() without arguments = in-memory database
-        self.conn = duckdb.connect('discovery_agent_database.db')
+        self.conn = duckdb.connect('discovery_mcp__loaded_csv_data.db')
 
         # Validate that the folder actually exists
         if not self.folder_path.exists():
@@ -121,10 +122,7 @@ class CSVDataSource(DataSource):
             Reads a CSV file using DuckDB and returns a sampled relation.
 
             - read_csv_auto() detects column types automatically
-            - USING SAMPLE limits rows BEFORE loading into memory (efficient)
-            - Returns a DuckDB relation, not a full dataframe
-            - The filters dict should be declared like:
-                {"column": "<name_of_column>", "value_to_filer":"value_1"}
+            - USING SAMPLE limits rows BEFORE loading into memory
             """
         path = self.folder_path / f"{table_name}.csv"
         
@@ -139,11 +137,25 @@ class CSVDataSource(DataSource):
             """
 
         else:
-            for column, value in filter.items():
-                query = f"""
+            # Extract filter - handle nested structure {source_type: {column: ..., value_to_filter: ...}}
+            actual_filter = filter
+            if len(filter) == 1 and isinstance(next(iter(filter.values())), dict):
+                actual_filter = next(iter(filter.values()))
+
+            # Get column and value
+            column = actual_filter.get("column")
+            value = actual_filter.get("value_to_filter")
+            if value is None:
+                value = actual_filter.get("value_to_filer")
+
+            if column is None or value is None:
+                # Fallback: get first key-value pair
+                column, value = next(iter(actual_filter.items()))
+
+            query = f"""
                     SELECT *
                     FROM read_csv_auto('{path}')
-                    WHERE {column} = {value}
+                    WHERE "{column}" = '{value}'
                     USING SAMPLE {sample_size} ROWS
                 """
 
@@ -293,11 +305,11 @@ def get_datasource(source_type: str, **kwargs) -> DataSource:
     Returns the correct DataSource implementation based on source_type.
 
     Usage:
-        source = get_datasource("csv", folder_path="./data/dvd_rentals")
+        source = get_datasource("csv"). By default, reads from INPUT_DATA_PATH set in .env path.
 
     Parameters:
-        source_type : one of "csv" (more to come)
-        **kwargs    : arguments passed to the DataSource constructor
+        source_type : csv or snowflake
+        **kwargs    : arguments passed to the DataSource constructor. Depends on source_type.
     """
     sources = {
         "csv": CSVDataSource,
