@@ -1,2 +1,3 @@
 *.pyc
 DEV.md
+.env
