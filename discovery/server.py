@@ -103,7 +103,7 @@ async def profile_data(
 
 mcp.add_tool(
     inspect_pattern_from_profile,
-    name="inspect_pattern_from_profile",
+    name="inspect_pattern",
     description="""
             Analyzes behavioral patterns and business relationships within previously profiled datasets.
 
@@ -124,7 +124,7 @@ mcp.add_tool(
 
 mcp.add_tool(
     inspect_structure_from_profile,
-    name="inspect_structure_from_profile",
+    name="inspect_structure",
     description="""
             Analyzes the structural organization of previously profiled datasets.
 
