@@ -173,7 +173,7 @@ def inspect_pattern_from_profile(
             messages=observer_messages,
             model="claude-sonnet-4-6",
             max_tokens=8000,
-            system=system_prompt
+            system=system_prompt,
         )
             
         analysis = response.content[0].text

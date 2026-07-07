@@ -2,7 +2,13 @@
 """
 writer.py
 
-Creates the files generated at each step in the storage.
+Creates the files generated at each step in the storage, for different storage applications. Currently supports local and AWS.
+
+Functions in this file:
+- write_json_to_storage
+- read_json_from_storage
+- get_storage
+
 """
 
 import os 
@@ -29,9 +35,9 @@ class DataStorage(ABC):
         pass
 
 
-############################################
-#         LOCAL IMPLEMENTATION             #
-############################################
+
+## LOCAL IMPLEMENTATION ## 
+
 class LocalDataStorage(DataStorage):
     def __init__(self, folder_path):
         self.folder_path = Path(folder_path)
@@ -129,9 +135,7 @@ class LocalDataStorage(DataStorage):
         
 
 
-############################################
-#         AWS IMPLEMENTATION              #
-############################################
+## AWS IMPLEMENTATION ##
 class AWSDataStorage(DataStorage):
     def __init__(self, **kwargs):
         self.s3 = boto3.client(

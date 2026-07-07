@@ -1,7 +1,7 @@
 ---
-name: inspect_pattern_from_profile
+name: behaviorist
 description: "Read JSON files to retrieve high-level information about data sources and query the database to grasp their underlying behavior."
-argument-hint: "[--source-domain] [--json-storage-path]"
+argument-hint: "[--json-storage-path] [--source-domain]"
 metadata:
   last-updated: 2026-05-16 20:59 UTC
   version: 1.0.0
