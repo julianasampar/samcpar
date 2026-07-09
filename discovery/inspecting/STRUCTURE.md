@@ -1,9 +1,9 @@
 ---
 name: inspect_structure_from_profile
-description: "Read data sources profiling, stored in JSON files, to inspect underlying architectural structure, such as primary and foreign keys, relationships between tables and orchestration, and create a JSON file per table with inspected analysis. It should be used after profiler.py is executed or when there is already an existing profile JSON file in storage for the source domain in question."
-argument-hint: "[--domain_name] [--storage_type] [--input_path] [--output_path] [--`input_bucket`] [--output_bucket]"
+description: "Read data sources profiling, stored in JSON files, to inspect underlying architectural structure, such as primary and foreign keys, relationships between tables and orchestration, and create a JSON file per table with inspected analysis. It should be executed after profile_data tool or when there is already an existing profile JSON file in storage for the source domain in question."
+argument-hint: "[--domain_name] [--storage_type] [--input_path] [--output_path] [--input_bucket] [--output_bucket]"
 metadata:
-  last-updated: 2026-07-07 18:30 UTC
+  last-updated: 2026-07-09 18:30 UTC
   version: 1.0.0
   category: under development
 ---
@@ -13,11 +13,11 @@ metadata:
 | Argument | Required | Description |
 |----------|----------|-------------|
 | `--domain_name` | Yes | Data domain related to the sources. The Agent should be able to find the pattern and read only the JSON files from the specified domain.  |
-| `--storage_type` | Yes | Path where the profiling JSON files are located.  |
-| `--input_path` | No |   |
-| `--output_path` | No |   |
-| `--input_bucket` | No |   |
-| `--output_bucket` | No |   |
+| `--storage_type` | Yes | Type of storage where the profiling JSON files is located (it can be 'local' or 'AWS').  |
+| `--input_path` | No | If 'local' as storage type, local path to read the profiling data. |
+| `--output_path` | No | If 'local' as storage type, local path to write the inspected data. |
+| `--input_bucket` | No | If 'AWS' as storage type, bucket to read the profiling data. |
+| `--output_bucket` | No | If 'AWS' as storage type, bucket to write the inspected data. |
 
 # Inspect Structure From Profile
 ## Quick Guide
@@ -27,22 +27,18 @@ metadata:
 **What It Does**: Connects to the file system storage and reads JSON files containing each table's profiling information. Performs discovery analysis, such as identifying PKs, FKs, Orchestration patterns and relationships.
 
 **Hooks**:
-> **`/inspector`** defines the task for READING the profiling JSON files and WRITING the interpreted results. 
+> **`/inspect_structure_from_profile`** defines the task for READING the profiling JSON files and WRITING the interpreted results. 
 
 **Example**:
 <example-user-input>
 ``` 
-User: /inspector
-Agent: Detects no storage path nor domain. By default, uses the variables defined in .env. If any variable is provided, asks the user for the storage path and domain. 
-```
-```
-User: The storage path is /profiler/resources and the domain is dvd_rentals.
-Agent: The agent find the pattern related to dvd_rentals inside the provided storage, read all respective JSON files and writes the results.
-```
-```
-You: /inspector zendesk
-Agent: Detects a domain was provided and searches for all JSON files containing zendesk text pattern. Reads and inspects all tables for Zendesk domain.
-```
+User: /inspect_structure_from_profile
+Agent: Detects no domain_name nor storage_type were provided. Asks the user the required arguments.
+``` 
+``` 
+User: /inspect_structure_from_profile The domain is dvd_rentals, the storage path is AWS.
+Agent: Retrieves the Snowflake and AWS environment variables to connect to the warehouse and execute the queries. Then, identifies the storage path was provided where the type is 'AWS', so it reads and writes the JSONs related to 'dvd_rentals' from the provided bucket.
+``` 
 </example-user-input>
 
 # Architect Discovery
