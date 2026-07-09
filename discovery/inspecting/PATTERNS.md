@@ -7,16 +7,7 @@ metadata:
   version: 1.0.0
   category: under development
 ---
----
-name: inspect_pattern_from_profile
-description: "Read JSON files to retrieve high-level information about data sources and query the database to grasp their underlying behavior."
-argument-hint: "[--source-domain] [--json-storage-path]"
-metadata:
-  last-updated: 2026-05-16 20:59 UTC
-  version: 1.0.0
-  category: under development
----
-/
+
 ## Arguments
 
 | Argument | Required | Description |

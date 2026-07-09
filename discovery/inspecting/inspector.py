@@ -14,7 +14,7 @@ Functions in this file:
 
 import json
 from discovery.utils.reader import get_datasource
-from discovery.utils.writer import get_storage
+from discovery.utils.handler import get_storage
 from discovery.utils import assistant, manager, executor
 
 from pathlib import Path

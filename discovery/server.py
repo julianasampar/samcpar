@@ -3,7 +3,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from discovery.utils.reader import get_datasource
-from discovery.utils.writer import get_storage
+from discovery.utils.handler import get_storage
 from discovery.profiling.profiler import profile_all_tables
 from discovery.inspecting.inspector import inspect_structure_from_profile, inspect_pattern_from_profile
 

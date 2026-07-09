@@ -1,19 +1,16 @@
-
 """
-writer.py
+handler.py
 
-Creates the files generated at each step in the storage, for different storage applications. Currently supports local and AWS.
-
-Functions in this file:
-- write_json_to_storage
-- read_json_from_storage
-- get_storage
+This function defines how the server connects to local and external applications 
+to read and write data.
 
 """
 
-import os 
-import boto3
+import os
 import json
+import boto3
+import duckdb
+import snowflake.connector
 from pathlib import Path
 from dotenv import load_dotenv
 from abc import ABC, abstractmethod
@@ -35,7 +32,6 @@ class DataStorage(ABC):
         pass
 
 
-
 ## LOCAL IMPLEMENTATION ## 
 
 class LocalDataStorage(DataStorage):
@@ -44,7 +40,7 @@ class LocalDataStorage(DataStorage):
 
     def write_json_to_storage(self, content: dict, domain_folder: str = None, analysis_type: str = None) -> str:
         """
-        Saves profiling or analysis results locally.
+        Saves JSON results (from profiler or inspector steps) to a local directory.
         If analysis_type is provided, appends to a list. Otherwise, creates/overwrites (profiler mode).
         """
 
@@ -114,16 +110,16 @@ class LocalDataStorage(DataStorage):
         return path_written
     
 
-    def read_json_from_storage(self, directory: str) -> dict:
+    def read_json_from_storage(self) -> dict:
         """
-        Reads a directory containing JSON profiling files.
+        Reads JSON files (from profiler or inspector steps) from a local directory.
         """
 
-        directory = Path(directory)
+        input_path = self.folder_path
         
         results = {}
 
-        for file in directory.glob("*.json"):
+        for file in input_path.glob("*.json"):
 
             if file.name == "manifest.json":
                 continue
@@ -132,25 +128,27 @@ class LocalDataStorage(DataStorage):
                 results[file.stem] = json.load(f)
 
         return results
-        
-
+    
 
 ## AWS IMPLEMENTATION ##
+
 class AWSDataStorage(DataStorage):
-    def __init__(self, **kwargs):
+    def __init__(self, bucket, **kwargs):
         self.s3 = boto3.client(
             "s3",
             aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
             region_name=os.getenv("AWS_REGION"),
         )
+        self.bucket = bucket
 
-    def write_json_to_storage(self, content: dict, domain_folder: str, bucket: str = os.getenv("S3_BUCKET_NAME"), analysis_type: str = None) -> str:
+    def write_json_to_storage(self, content: dict, domain_folder: str, analysis_type: str = None) -> str:
         """
         Saves profiling or analysis results to S3.
         If analysis_type is provided, appends to a list. Otherwise, creates/overwrites (profiler mode).
         """
         s3 = self.s3
+        bucket = self.bucket
         timestamp = datetime.now(timezone.utc).isoformat()
 
         for table_name, table_profile in content.items():
@@ -204,8 +202,92 @@ class AWSDataStorage(DataStorage):
 
         return path_written
     
-    def read_json_from_storage(self, directory=None) -> dict:
-        raise ValueError("THERE IS NO AWS READ CONNECTION YET!! HOLD ON TIGHT!!")
+    def read_json_from_storage(self, domain_folder: str) -> dict:
+        """
+        Reads all JSON files inside an S3 prefix (folder) and returns
+        a single dictionary where each file's content is merged.
+        """
+
+        response = self.s3.list_objects_v2(
+            Bucket=self.bucket,
+            Prefix=domain_folder
+        )
+
+        profiles = {}
+
+        for obj in response.get("Contents", []):
+            key = obj["Key"]
+
+            if not key.endswith(".json"):
+                continue
+
+            file = self.s3.get_object(
+                Bucket=self.bucket,
+                Key=key
+            )
+
+            content = json.loads(
+                file["Body"].read().decode("utf-8")
+            )
+
+            profiles.update(content)
+
+        return profiles
+
+
+## ASSISTANT FUNCTIONS ##
+
+def manage_input_output_paths(
+        storage_type,
+        io_type:str,
+        input_path=None,
+        output_path=None,
+        input_bucket=None,
+        output_bucket=None,
+    ):
+
+        reading_kwargs = {}
+        writting_kwargs = {}
+
+        if storage_type == "local":
+
+            if io_type == "profiler-inspector":
+
+                reading_kwargs["folder_path"] = input_path or os.getenv("PROFILER_PATH")
+                writting_kwargs["folder_path"] = output_path or os.getenv("INPESCTOR_PATH")
+
+                if not reading_kwargs["folder_path"]:
+                    raise ValueError(
+                        "Please, provide input_path or add PROFILER_PATH in your environment variables."
+                    )
+
+                if not writting_kwargs["folder_path"]:
+                    raise ValueError(
+                        "Please, provide output_path or add INPESCTOR_PATH in your environment variables."
+                    )
+
+        elif storage_type == "aws":
+
+            if io_type == "profiler-inspector":
+
+                input_bucket = input_bucket or os.getenv("S3_PROFILER_BUCKET")
+                output_bucket = output_bucket or os.getenv("S3_INSPECTOR_BUCKET")
+
+                if not input_bucket:
+                    raise ValueError(
+                        "Please, provide input_bucket or add S3_PROFILER_BUCKET in your environment variables."
+                    )
+
+                if not output_bucket:
+                    raise ValueError(
+                        "Please, provide output_bucket or add S3_INSPECTOR_BUCKET in your environment variables."
+                    )
+
+
+            reading_kwargs["bucket"] = input_bucket
+            writting_kwargs["bucket"] = output_bucket
+
+        return reading_kwargs, writting_kwargs
 
 
 def get_storage(storage_type: str, **kwargs) -> DataStorage:
@@ -216,8 +298,8 @@ def get_storage(storage_type: str, **kwargs) -> DataStorage:
         storage = get_storage("aws")
 
     Parameters:
-        storage_type : one of "aws" (more to come)
-        **kwargs    : arguments passed to the DataStorage constructor
+        storage_type : "local" or "aws"
+        **kwargs    : additional arguments that may be passed to the DataStorage constructor (for example, "folder_path" or "bucket")
     """
     storages = {
         "local": LocalDataStorage,
@@ -226,5 +308,17 @@ def get_storage(storage_type: str, **kwargs) -> DataStorage:
 
     if storage_type not in storages:
         raise ValueError(f"Unknown source type '{storage_type}'. Available: {list(storages.keys())}")
+    
+    ## manage the folder reading/writting better
+    ## maybe creating fixed folders/buckets for profiling and inspection rather then defining them in env variables
+    
+    manage_input_output_paths(
+        storage_type,
+        io_type=kwargs.get('io_type'),
+        input_path=kwargs.get('input_path'),
+        output_path=kwargs.get('output_path'),
+        input_bucket=kwargs.get('input_bucket'),
+        output_bucket=kwargs.get('output_bucket'),
+    )
 
     return storages[storage_type](**kwargs)
