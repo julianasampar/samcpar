@@ -50,11 +50,9 @@ async def profile_data(
     domain:          str,
     datasource_type: str,
     storage_type:    str,
-    input_path=None,   # required for csv
+    input_path=None,   # optional for csv
     database=None,   # optional for snowflake
     schema=None,   # optional for snowflake
-    output_path=None,   # required for local
-    bucket=None,   # optional for s3
 ) -> str:
     
     def run_profiling():
