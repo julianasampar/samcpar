@@ -9,8 +9,6 @@ to read and write data.
 import os
 import json
 import boto3
-import duckdb
-import snowflake.connector
 from pathlib import Path
 from dotenv import load_dotenv
 from abc import ABC, abstractmethod
@@ -311,7 +309,7 @@ def get_storage(storage_type: str, **kwargs) -> DataStorage:
     
     ## manage the folder reading/writting better
     ## maybe creating fixed folders/buckets for profiling and inspection rather then defining them in env variables
-    
+
     manage_input_output_paths(
         storage_type,
         io_type=kwargs.get('io_type'),
