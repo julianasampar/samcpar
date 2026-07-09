@@ -78,21 +78,8 @@ async def profile_data(
         source  = get_datasource(datasource_type, **kwargs)
         results = profile_all_tables(source)
 
-        storage_kwargs = {}
-        if storage_type == "local":
-            storage_kwargs["folder_path"] = output_path or os.getenv("PROFILER_PATH")
-
-            if not storage_kwargs["folder_path"]:
-                return "Error: output_path is required when storage_type is 'local'"
-
-        if storage_type == "aws":
-            aws_bucket = bucket or os.getenv('S3_BUCKET_NAME')
-            if not aws_bucket:
-                return "Error: S3 bucket is required. Either pass bucket parameter or set S3_BUCKET_NAME environment variable."
-            storage_kwargs["bucket"] = aws_bucket
-
-        storage = get_storage(storage_type, **storage_kwargs)
-        storage.write_json_to_storage(content=results, domain_folder=domain)
+        storage = get_storage(storage_type)
+        storage.write_json_to_storage(content=results, domain_folder=domain, analysis_type='profiling')
 
         return "Profiling successfully executed"
     
