@@ -19,14 +19,14 @@ load_dotenv()
 class DataStorage(ABC):
 
     @abstractmethod
-    def write_json_to_storage(self, content: dict, domain_folder: str) -> str:
+    def write_json_to_storage(self, content: dict, domain_folder: str, analysis_type: str = None) -> str:
         """
         Writes JSON files into the storage. If a file already exist, this function overwrites it.
         """
         pass
 
     @abstractmethod
-    def read_json_from_storage(self, directory: str) -> dict:
+    def read_json_from_storage(self) -> dict:
         pass
 
 
