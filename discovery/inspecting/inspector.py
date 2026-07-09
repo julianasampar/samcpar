@@ -14,7 +14,7 @@ Functions in this file:
 
 import json
 from discovery.utils.reader import get_datasource
-from discovery.utils.writer import get_storage
+from discovery.utils.handler import get_storage
 from discovery.utils import assistant, manager, executor
 
 from pathlib import Path
@@ -49,17 +49,10 @@ def inspect_structure_from_profile(
         Receives the profiling JSON from the previous steps and spins up agents to
          analyze its structure and write in the stroage.
     """
-    reading_kwargs, writting_kwargs = manager.manage_input_output_paths(
-        storage_type,
-        io_type='profiler-inspector',
-        input_path=kwargs.get('input_path'),
-        output_path=kwargs.get('output_path'),
-        input_bucket=kwargs.get('input_bucket'),
-        output_bucket=kwargs.get('output_bucket'),
-    )
 
-    storage = get_storage(storage_type=storage_type, **reading_kwargs)
-    profile_json = storage.read_json_from_storage(f"{reading_kwargs["folder_path"]}/{domain_name}")
+
+    storage = get_storage(storage_type=storage_type, **kwargs)
+    profile_json = storage.read_json_from_storage(f"{kwargs["folder_path"]}/{domain_name}")
 
     system_prompt = load_skill(skill_name="STRUCTURE")
 
@@ -89,7 +82,7 @@ def inspect_structure_from_profile(
             )
         results = response.content[0].text
 
-        storage = get_storage(storage_type, **writting_kwargs)
+        storage = get_storage(storage_type, **kwargs)
         storage.write_json_to_storage(content={datasource: {"analysis": results}}, domain_folder=domain_name, analysis_type="structure")
 
         print(f" Structure of {datasource} inspected. File in storage. Length of analysis: {len(results)} caracteres.")
@@ -132,17 +125,8 @@ def inspect_pattern_from_profile(
          analyze its behavior, through dynamic filtering.
     """
 
-    reading_kwargs, writting_kwargs = manager.manage_input_output_paths(
-        storage_type,
-        io_type='profiler-inspector',
-        input_path=kwargs.get('input_path'),
-        output_path=kwargs.get('output_path'),
-        input_bucket=kwargs.get('input_bucket'),
-        output_bucket=kwargs.get('output_bucket'),
-    )
-
-    storage = get_storage(storage_type=storage_type, **reading_kwargs)
-    profile_json = storage.read_json_from_storage(f"{reading_kwargs["folder_path"]}/{domain_name}")
+    storage = get_storage(storage_type=storage_type, **kwargs)
+    profile_json = storage.read_json_from_storage(f"{kwargs["folder_path"]}/{domain_name}")
     filters = build_filters(profile_json)
     
     # To be able to query the data and observe patterns 
@@ -186,7 +170,7 @@ def inspect_pattern_from_profile(
             
         analysis = response.content[0].text
 
-        storage = get_storage(storage_type, **writting_kwargs)
+        storage = get_storage(storage_type, **kwargs)
         storage.write_json_to_storage(content={datasource: {"analysis": analysis}}, domain_folder=domain_name, analysis_type="pattern")
 
         print(f" Pattern of {datasource} inspected. File in storage. Length of analysis: {len(analysis)} caracteres.")

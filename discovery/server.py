@@ -3,7 +3,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from discovery.utils.reader import get_datasource
-from discovery.utils.writer import get_storage
+from discovery.utils.handler import get_storage
 from discovery.profiling.profiler import profile_all_tables
 from discovery.inspecting.inspector import inspect_structure_from_profile, inspect_pattern_from_profile
 
@@ -50,11 +50,9 @@ async def profile_data(
     domain:          str,
     datasource_type: str,
     storage_type:    str,
-    input_path=None,   # required for csv
+    input_path=None,   # optional for csv
     database=None,   # optional for snowflake
     schema=None,   # optional for snowflake
-    output_path=None,   # required for local
-    bucket=None,   # optional for s3
 ) -> str:
     
     def run_profiling():
@@ -78,21 +76,8 @@ async def profile_data(
         source  = get_datasource(datasource_type, **kwargs)
         results = profile_all_tables(source)
 
-        storage_kwargs = {}
-        if storage_type == "local":
-            storage_kwargs["folder_path"] = output_path or os.getenv("PROFILER_PATH")
-
-            if not storage_kwargs["folder_path"]:
-                return "Error: output_path is required when storage_type is 'local'"
-
-        if storage_type == "aws":
-            aws_bucket = bucket or os.getenv('S3_BUCKET_NAME')
-            if not aws_bucket:
-                return "Error: S3 bucket is required. Either pass bucket parameter or set S3_BUCKET_NAME environment variable."
-            storage_kwargs["bucket"] = aws_bucket
-
-        storage = get_storage(storage_type, **storage_kwargs)
-        storage.write_json_to_storage(content=results, domain_folder=domain)
+        storage = get_storage(storage_type)
+        storage.write_json_to_storage(content=results, domain_folder=domain, analysis_type='profiling')
 
         return "Profiling successfully executed"
     

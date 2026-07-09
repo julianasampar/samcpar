@@ -1,19 +1,14 @@
-
 """
-writer.py
+handler.py
 
-Creates the files generated at each step in the storage, for different storage applications. Currently supports local and AWS.
-
-Functions in this file:
-- write_json_to_storage
-- read_json_from_storage
-- get_storage
+This function defines how the server connects to local and external applications 
+to read and write data.
 
 """
 
-import os 
-import boto3
+import os
 import json
+import boto3
 from pathlib import Path
 from dotenv import load_dotenv
 from abc import ABC, abstractmethod
@@ -24,42 +19,45 @@ load_dotenv()
 class DataStorage(ABC):
 
     @abstractmethod
-    def write_json_to_storage(self, content: dict, domain_folder: str) -> str:
+    def write_json_to_storage(self, content: dict, domain_folder: str = None, analysis_type: str = None) -> str:
         """
         Writes JSON files into the storage. If a file already exist, this function overwrites it.
         """
         pass
 
     @abstractmethod
-    def read_json_from_storage(self, directory: str) -> dict:
+    def read_json_from_storage(self, domain_folder: str = None) -> dict:
+        """
+        Reads JSON files from the storage. 
+        """
         pass
-
 
 
 ## LOCAL IMPLEMENTATION ## 
 
 class LocalDataStorage(DataStorage):
-    def __init__(self, folder_path):
-        self.folder_path = Path(folder_path)
+    def __init__(self):
+        
+        self.file_path = os.getenv("DISCOVERY_STORAGE_PATH")
 
     def write_json_to_storage(self, content: dict, domain_folder: str = None, analysis_type: str = None) -> str:
         """
-        Saves profiling or analysis results locally.
-        If analysis_type is provided, appends to a list. Otherwise, creates/overwrites (profiler mode).
+        Saves JSON results (from profiler or inspector steps) to a local directory.
+        The argument 'analysis_type' informs the type of analysis, which can be 'profiling', 'structure' or 'patterns'.
         """
 
-        output_path = self.folder_path
+        file_path = self.file_path
 
         if domain_folder:
-            output_path = output_path / domain_folder
+            file_path = file_path / domain_folder
 
-        output_path.mkdir(parents=True, exist_ok=True)
+        file_path.mkdir(parents=True, exist_ok=True)
 
         timestamp = datetime.now(timezone.utc).isoformat()
 
         # Write one JSON file per table
         for table_name, table_profile in content.items():
-            file_path = output_path / f"{table_name}.json"
+            file_path = file_path / f"{table_name}.json"
 
             if analysis_type:
                 # Append mode: add to existing list or create new list
@@ -88,42 +86,23 @@ class LocalDataStorage(DataStorage):
 
             print(f"Saved: {file_path}")
 
-        # Write manifest (only for profiler mode)
-        if not analysis_type:
-            manifest = {
-                "profiled_at": timestamp,
-                "table_count": len(content),
-                "tables": [
-                    {
-                        "name": name,
-                        "row_count": profile.get("row_count", 0),
-                        "file": f"{name}.json",
-                    }
-                    for name, profile in content.items()
-                ],
-            }
-
-            manifest_path = output_path / "manifest.json"
-
-            with open(manifest_path, "w", encoding="utf-8") as f:
-                json.dump(manifest, f, indent=2)
-
-            print(f"Manifest written: {manifest_path}")
-
-        path_written = str(output_path)
+        path_written = str(file_path)
         return path_written
     
 
-    def read_json_from_storage(self, directory: str) -> dict:
+    def read_json_from_storage(self, domain_folder: str = None) -> dict:
         """
-        Reads a directory containing JSON profiling files.
+        Reads JSON files (from profiler or inspector steps) from a local directory.
         """
 
-        directory = Path(directory)
+        file_path = self.file_path 
+        
+        if domain_folder:
+            file_path = file_path / domain_folder
         
         results = {}
 
-        for file in directory.glob("*.json"):
+        for file in file_path.glob("*.json"):
 
             if file.name == "manifest.json":
                 continue
@@ -132,10 +111,10 @@ class LocalDataStorage(DataStorage):
                 results[file.stem] = json.load(f)
 
         return results
-        
-
+    
 
 ## AWS IMPLEMENTATION ##
+
 class AWSDataStorage(DataStorage):
     def __init__(self, **kwargs):
         self.s3 = boto3.client(
@@ -144,17 +123,23 @@ class AWSDataStorage(DataStorage):
             aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
             region_name=os.getenv("AWS_REGION"),
         )
+        self.bucket = os.getenv("S3_DISCOVERY_BUCKET")
 
-    def write_json_to_storage(self, content: dict, domain_folder: str, bucket: str = os.getenv("S3_BUCKET_NAME"), analysis_type: str = None) -> str:
+    def write_json_to_storage(self, content: dict, domain_folder: str = None, analysis_type: str = None) -> str:
         """
         Saves profiling or analysis results to S3.
-        If analysis_type is provided, appends to a list. Otherwise, creates/overwrites (profiler mode).
+        The argument 'analysis_type' informs the type of analysis, which can be 'profiling', 'structure' or 'patterns'.
         """
         s3 = self.s3
+        bucket = self.bucket
         timestamp = datetime.now(timezone.utc).isoformat()
 
         for table_name, table_profile in content.items():
-            key = f"{domain_folder}/{table_name}.json"
+
+            if domain_folder:
+                key = f"{domain_folder}/{table_name}.json"
+            else:
+                key = {table_name}.json
 
             if analysis_type:
                 # Append mode: read existing, add new entry
@@ -183,30 +168,44 @@ class AWSDataStorage(DataStorage):
             s3.put_object(Bucket=bucket, Key=key, Body=json_content.encode("utf-8"))
             print(f"  Saved: s3://{bucket}/{key}")
 
-        # Write the manifest (only for profiler mode)
-        if not analysis_type:
-            manifest = {
-                "profiled_at": timestamp,
-                "table_count": len(content),
-                "tables": [
-                    {"name": name, "row_count": profile.get("row_count", 0), "file": f"{name}.json"}
-                    for name, profile in content.items()
-                ],
-            }
-            s3.put_object(
-                Bucket=bucket,
-                Key=f"{domain_folder}/manifest.json",
-                Body=json.dumps(manifest, indent=2).encode("utf-8"),
-            )
-            print(f"  Manifest written: s3://{bucket}/{domain_folder}/manifest.json")
-
         path_written = f"s3://{bucket}/{domain_folder}"
 
         return path_written
     
-    def read_json_from_storage(self, directory=None) -> dict:
-        raise ValueError("THERE IS NO AWS READ CONNECTION YET!! HOLD ON TIGHT!!")
+    def read_json_from_storage(self, domain_folder: str = None) -> dict:
+        """
+        Reads all JSON files inside an S3 prefix (folder) and returns
+        a single dictionary where each file's content is merged.
+        """
 
+        response = self.s3.list_objects_v2(
+            Bucket=self.bucket,
+            Prefix=domain_folder
+        )
+
+        profiles = {}
+
+        for obj in response.get("Contents", []):
+            key = obj["Key"]
+
+            if not key.endswith(".json"):
+                continue
+
+            file = self.s3.get_object(
+                Bucket=self.bucket,
+                Key=key
+            )
+
+            content = json.loads(
+                file["Body"].read().decode("utf-8")
+            )
+
+            profiles.update(content)
+
+        return profiles
+
+
+## ASSISTANT FUNCTIONS ##
 
 def get_storage(storage_type: str, **kwargs) -> DataStorage:
     """
@@ -216,8 +215,8 @@ def get_storage(storage_type: str, **kwargs) -> DataStorage:
         storage = get_storage("aws")
 
     Parameters:
-        storage_type : one of "aws" (more to come)
-        **kwargs    : arguments passed to the DataStorage constructor
+        storage_type : "local" or "aws"
+        **kwargs    : additional arguments that may be passed to the DataStorage constructor (for example, "folder_path" or "bucket")
     """
     storages = {
         "local": LocalDataStorage,

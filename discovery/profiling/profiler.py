@@ -4,7 +4,7 @@ profiler.py
 Computes descriptive statistics for every column in a table.
 Uses DuckDB SQL — no LLM involved. Pure deterministic computation.
 
-Returns a structured dict that the orchestrator will later pass to the LLM.
+Returns a structured JSON to be passed to the LLM.
 """
 
 from discovery.utils.reader import DataSource
