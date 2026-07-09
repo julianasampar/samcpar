@@ -27,6 +27,9 @@ class DataStorage(ABC):
 
     @abstractmethod
     def read_json_from_storage(self) -> dict:
+        """
+        Reads JSON files from the storage. 
+        """
         pass
 
 
